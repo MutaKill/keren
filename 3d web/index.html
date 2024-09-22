@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two 3D Models on Separate Canvases</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            overflow: hidden;
+            background-color: white; /* Warna background halaman */
+        }
+
+        .canvas-container {
+            width: 50vw; /* 50% dari lebar viewport */
+            height: 50vh; /* 50% dari tinggi viewport */
+            margin: 10px;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container1" class="canvas-container"></div>
+    <div id="canvas-container2" class="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        // Fungsi umum untuk membuat renderer, scene, camera, dan model
+        function init3D(containerId, modelPath) {
+            const container = document.getElementById(containerId);
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Set background scene menjadi putih
+            scene.background = new THREE.Color(0xffffff); // Putih
+
+            // Tambahkan OrbitControls untuk interaksi
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+            // Tambahkan cahaya ke scene
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 1, 1).normalize();
+            scene.add(directionalLight);
+
+            let model;
+
+            // Muat file GLB
+            const loader = new THREE.GLTFLoader();
+            loader.load(modelPath, function (gltf) {
+                model = gltf.scene;
+                model.scale.set(1, 1, 1); // Sesuaikan skala model jika diperlukan
+                model.position.set(0, 0, 0); // Posisikan model di tengah
+                scene.add(model);
+
+                // Posisi kamera agar objek terlihat
+                const box = new THREE.Box3().setFromObject(model); // Dapatkan bounding box model
+                const center = box.getCenter(new THREE.Vector3()); // Titik tengah dari model
+                const size = box.getSize(new THREE.Vector3()); // Ukuran bounding box model
+
+                // Menghitung jarak yang diperlukan untuk melihat seluruh objek
+                const maxDim = Math.max(size.x, size.y, size.z); // Dapatkan dimensi terbesar
+                const fov = camera.fov * (Math.PI / 180); // Field of view dalam radian
+                let cameraZ = Math.abs(maxDim / (2 * Math.tan(fov / 2))); // Hitung jarak kamera
+
+                cameraZ *= 2; // Tambahkan faktor jarak lebih besar agar objek terlihat jelas
+                camera.position.set(center.x, center.y, cameraZ); // Atur posisi kamera
+                camera.lookAt(center); // Arahkan kamera ke objek
+
+                // Update kontrol orbit agar berpusat pada objek
+                controls.target.set(center.x, center.y, center.z);
+                controls.update();
+            });
+
+            // Tambahkan animasi berputar pada model
+            function animate() {
+                requestAnimationFrame(animate);
+
+                if (model) {
+                    model.rotation.y += 0.01; // Putar model pada sumbu Y
+                }
+
+                controls.update(); // Update OrbitControls untuk interaksi
+                renderer.render(scene, camera);
+            }
+
+            // Jalankan animasi
+            animate();
+
+            // Fungsi untuk memperbarui ukuran canvas saat window di-resize
+            window.addEventListener('resize', function () {
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+        }
+
+        // Inisialisasi canvas 1 dengan model 3D pertama
+        init3D('canvas-container1', 'html.glb');
+
+        // Inisialisasi canvas 2 dengan model 3D kedua
+        init3D('canvas-container2', 'css.glb');
+
+    </script>
+</body>
+</html>
